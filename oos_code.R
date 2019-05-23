@@ -31,3 +31,19 @@ circ_f,tpc_f,baseprice,offer_price_orig,exit_price,offer_price,nrgtn,ttl_units,t
 sku_set=unique(oos_sorted$sku)
 
 sku_set <- sku_set[sku_set!=949766]
+
+#Function to locate runs
+run_locate <- function(x){
+  start_vec <- c()
+  end_vec <- c()
+  for(i in 2:length(x)){
+    if(x[i]==1 & x[i-1]==0) start_vec <- c(start_vec,i)
+    if((x[i-1]==1 & i==2)) start_vec <- c(start_vec,i-1)
+    
+    if(x[i]==0 & x[i-1]==1 & i <= length(x)) end_vec <- c(end_vec,(i-1))
+    if(x[i]==1 & i == length(x)) end_vec <- c(end_vec,i)
+  }
+  return(data.frame(start_vec=start_vec,end_vec=end_vec))
+}
+
+
