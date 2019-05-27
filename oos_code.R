@@ -226,3 +226,23 @@ new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
 colnames(new)[7] <- "gap"
 model_ready_data <- rbind(model_ready_data, new)
 model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
+
+#Random survival forests again
+rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
+             data=model_ready_data, ntree = 100, samptype = "swr",
+             seed = 18, na.action = "na.impute", nodesize = 5)
+#Inbag
+plot(rfs$time.interest,(1-rfs$survival[1,]), 'l', xlab = 'Time in days', 
+     ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
+for(i in 2:dim(rfs$survival)[1])
+{
+  lines(rfs$time.interest,(1-rfs$survival[i,]))
+}
+
+#Out of bag
+plot(rfs$time.interest,(1-rfs$survival[1,]), 'l', xlab = 'Time in days', 
+     ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
+for(i in 2:dim(rfs$survival)[1])
+{
+  lines(rfs$time.interest,(1-rfs$survival[i,]))
+}
