@@ -28,7 +28,7 @@ oos_sorted <- oos_raw[,c("sku","co_loc_i","p_sls_d","p_week_start_date","co_loc_
                          "offer_price","nrgtn","ttl_units","ttl_units_gross", "dy_itm_loc_oos_ind")]
 all_itm_oos_agg <-  sqldf("select sku,p_sls_d,p_week_start_date,co_loc_i,istk_appl_f,sum_elig_istk_out_of_stk_f,
 circ_f,tpc_f,baseprice,offer_price_orig,exit_price,offer_price,nrgtn,ttl_units,ttl_units_gross,dy_itm_loc_oos_ind,
-count(*) as oos_agg,sum_boh_q,sum_eoh_q
+sum_boh_q,sum_eoh_q
                           from oos_sorted where istk_appl_f=1 group by sku,p_week_start_date,co_loc_i,p_sls_d")
 
 sku_set=unique(oos_sorted$sku)
@@ -62,7 +62,7 @@ promo_extractor <- function(inp_dt,lg){
     #cat(" ###   I   ###" , i, "\n")
     
     if(i <= lg){
-      x <- inp_dt[1:ifelse(i==1,1,i-1),]
+      x <- inp_dt[(1:ifelse(i==1,1,i-1)),]
       promo_smry_1[i] <- ifelse(sum(x$promo_ind)==0,0,(sum(x$promo_ind)/min(lg,i)))
       promo_smry_2[i] <- mean(x$baseprice[x$baseprice!=x$exit_price] - x$exit_price[x$baseprice!=x$exit_price])
     }
@@ -73,11 +73,13 @@ promo_extractor <- function(inp_dt,lg){
     }
     
     # if(i > aa$start_vec[1]){
-    oos_smry_1[i] <- ifelse(sum(x$oos_agg)==0,0,(sum(x$oos_agg)/min(lg,i)))
-    #
-    #
     
-    y <- x$oos_agg
+    #
+    #
+    oos_smry_1[i] <- ifelse(sum(x$dy_itm_loc_oos_ind)==0,0,(sum(x$dy_itm_loc_oos_ind)/min(lg,i)))
+    #dt <- run_locate(x$dy_itm_loc_oos_ind)
+    
+    y <- x$dy_itm_loc_oos_ind
     start_vec <- c()
     end_vec <- c()
     if(length(y)==1) {start_vec <- c(start_vec,1) ; end_vec <- c(end_vec,1)}
@@ -86,20 +88,19 @@ promo_extractor <- function(inp_dt,lg){
         if(y[j]==1 & y[j-1]==0) start_vec <- c(start_vec,j)
         if((y[j]==1 & y[j-1]==1 & j==2)) start_vec <- c(start_vec,(j-1))
         if((y[j]==0 & y[j-1]==1 & j==2)) start_vec <- c(start_vec,(j-1))
-        
+
         if(y[j]==0 & y[j-1]==1 & j <= length(y)) end_vec <- c(end_vec,(j-1))
         if(y[j]==1 & y[j-1]==0 & j == length(y)) end_vec <- c(end_vec,j)
         if(y[j]==1 & y[j-1]==1 & j == length(y)) end_vec <- c(end_vec,j)
-        
-      }
-      
+
+    }
       #cat(" ###   i  ###",i, "  ### len  diff  : startvc - endvec ##", length(start_vec) - length(end_vec),"\n")
       #cat(" $  $  $  i  $  $  $ ", i, "###", end_vec, "###", start_vec,  "\n")
       
-      oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(end_vec)==0,0,max(end_vec - start_vec)+1)
+      #oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(end_vec)==0,0,max(end_vec - start_vec)+1)
       #cat(" ### i  ### ",i,"stvec", start_vec," endvec" , end_vec, "\n")
       
-    }
+    #}
     #cat(" ### start_vec[1]  ### ",aa$start_vec[length(start_vec)]," ###   I   ###" , i, "\n")
     #cat(" ### end_vec[1]  ### ",aa$end_vec[length(end_vec)]," ###   I   ###" , i, "\n")
     
@@ -111,8 +112,8 @@ promo_extractor <- function(inp_dt,lg){
     #   oos_smry_1[i] <- ifelse(sum(x$oos_agg)==0,0,(sum(x$oos_agg)/i))
     #   tgt_ind <- which.min((aa$start_vec-i)[aa$start_vec-i > 0])
     #   oos_smry_2[i] <- max(aa$end_vec[1:tgt_ind] - aa$start_vec[1:tgt_ind])
-    # }
-    
+    }
+    oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(start_vec)==0,0,max(end_vec - start_vec)+1)  
   }
   return(data.frame(oos_smry_1=oos_smry_1,oos_smry_2=oos_smry_2,promo_smry_1=promo_smry_1,promo_smry_2=promo_smry_2))
 }
@@ -149,8 +150,10 @@ fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+
                               promo_smry_2, data=model_ready_data)
 
 #OOS curve
-nfit <- survfit(fit_oos_surv_model)
-plot(nfit$time,(1-nfit$surv), 'l', xlab = 'Time in days', 
-     ylab = 'Out of stock probability', main = 'Out of stock probability curve')
-
-
+nfit <- survfit(fit_oos_surv_model, newdata = model_ready_data)
+plot(nfit$time,(1-nfit$surv[,2]), 'l', xlab = 'Time in days', 
+     ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
+for(i in 3:10)
+{
+  lines(nfit$time,(1-nfit$surv[,i]))
+}
