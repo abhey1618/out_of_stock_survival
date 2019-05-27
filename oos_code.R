@@ -186,8 +186,8 @@ for(i in 2:9)
   lines(rfs$time.interest,(1-newpred$survival[i,]))
 }
 
-#The below commented part to takes a lot of time, 
-#The only use of it is to find most data item, location pair
+#The below commented part takes a lot of time, 
+#The only use of it is to find item, location pair with most data.
 
 # max = 0
 # for(i in 1:dim(oos_agg_all)[1])
