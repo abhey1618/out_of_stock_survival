@@ -180,3 +180,11 @@ for(i in 2:9)
 {
   lines(rfs$time.interest,(1-newpred$survival[i,]))
 }
+
+##Trying the same with the most data item, location pair
+max(oos_agg_all[,'freq'])
+oos_agg_all[oos_agg_all$freq == 279,]
+##We get that item -> 1567262, location -> 1720
+
+oos_agg_1720_1567262 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 1567262) & (all_itm_oos_agg$co_loc_i == 1720),]
+sum(oos_agg_1720_1567262$dy_itm_loc_oos_ind == 1)
