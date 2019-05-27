@@ -135,14 +135,19 @@ sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q")]
 
 #Creating data on which we can use survival anlysis
 aa <- run_locate(oos_agg_100_949663$dy_itm_loc_oos_ind)
+aa$start_0 <- lag(aa$end_vec,1)
+aa$start_0[1] <- 0
 bb <- promo_extractor(oos_agg_100_949663,5)
 bb<-cbind(bb, oos_agg_100_949663$promo_ind)
 colnames(bb)[5] <- "promo_ind"
 
 abb <- cbind(oos_agg_100_949663$dy_itm_loc_oos_ind,bb)
-model_ready_data <- abb[aa$start_vec,]
 
-model_ready_data$gap <- aa$end_vec - aa$start_vec +1 
+model_ready_data <- abb[aa$start_vec,]
+model_ready_data$gap <- aa$start_vec - aa$start_0 -1
+new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
+colnames(new)[7] <- "gap"
+model_ready_data <- rbind(model_ready_data, new)
 model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
 
 #CoxPH model
@@ -181,10 +186,43 @@ for(i in 2:9)
   lines(rfs$time.interest,(1-newpred$survival[i,]))
 }
 
-##Trying the same with the most data item, location pair
-max(oos_agg_all[,'freq'])
-oos_agg_all[oos_agg_all$freq == 279,]
-##We get that item -> 1567262, location -> 1720
+#The below commented part to takes a lot of time, 
+#The only use of it is to find most data item, location pair
 
-oos_agg_1720_1567262 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 1567262) & (all_itm_oos_agg$co_loc_i == 1720),]
-sum(oos_agg_1720_1567262$dy_itm_loc_oos_ind == 1)
+# max = 0
+# for(i in 1:dim(oos_agg_all)[1])
+# {
+#   dt <- all_itm_oos_agg[(all_itm_oos_agg$sku == oos_agg_all$sku[i]) & 
+#                           (all_itm_oos_agg$co_loc_i == oos_agg_all$co_loc_i[i]),]
+#   aa <- run_locate(dt$dy_itm_loc_oos_ind)
+#   if(dim(aa)[1] > max)
+#   {
+#     max <- dim(aa)[1]
+#     ritem <- oos_agg_all$sku[i]
+#     rloc <- oos_agg_all$co_loc_i[i]
+#   }
+# }
+
+##Trying the same with the most data item, location pair
+#ritem
+#rloc
+##We get that item -> 949663, location -> 3056
+
+oos_agg_3056_949663 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 949663) & (all_itm_oos_agg$co_loc_i == 3056),]
+sum(oos_agg_3056_949663$dy_itm_loc_oos_ind == 1)
+
+#Creating data on which we can use survival anlysis
+aa <- run_locate(oos_agg_3056_949663$dy_itm_loc_oos_ind)
+aa$start_0 <- lag(aa$end_vec,1)
+aa$start_0[1] <- 0
+bb <- promo_extractor(oos_agg_3056_949663,5)
+bb<-cbind(bb, oos_agg_3056_949663$promo_ind)
+colnames(bb)[5] <- "promo_ind"
+
+abb <- cbind(oos_agg_3056_949663$dy_itm_loc_oos_ind,bb)
+model_ready_data <- abb[aa$start_vec,]
+model_ready_data$gap <- aa$start_vec - aa$start_0 -1
+new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
+colnames(new)[7] <- "gap"
+model_ready_data <- rbind(model_ready_data, new)
+model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
