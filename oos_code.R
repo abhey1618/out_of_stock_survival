@@ -157,3 +157,26 @@ for(i in 3:10)
 {
   lines(nfit$time,(1-nfit$surv[,i]))
 }
+
+##Trying out Random survival forests
+library(randomForestSRC)
+rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
+             data=model_ready_data, ntree = 100, samptype = "swr",
+             seed = 18, na.action = "na.impute", nodesize = 5)
+fore<-rfs$survival
+funoob <- rfs$survival.oob
+
+plot(rfs$time.interest,(1-rfs$survival.oob[1,]), 'l', xlab = 'Time in days', 
+     ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
+for(i in 2:10)
+{
+  lines(rfs$time.interest,(1-rfs$survival.oob[i,]))
+}
+newpred <- predict(rfs, newdata = model_ready_data[1:10,])
+newpred$survival
+plot(rfs$time.interest,(1-newpred$survival[1,]), 'l', xlab = 'Time in days', 
+     ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
+for(i in 2:9)
+{
+  lines(rfs$time.interest,(1-newpred$survival[i,]))
+}
