@@ -18,11 +18,27 @@ leave_one_out <- function(data, model)
       if(i==1)
       {
         plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
-             ylab = 'Out of stock probability', main = 'Predicted out of stock probability curves', ylim = c(0,1)) 
+             ylab = 'Out of stock probability', main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
       }
       else
       {
         lines(rfs$time.interest,oosp[i,1:length(rfs$time.interest)])
+      }
+    }
+    else if(model == "CoxPH")
+    {
+      fit_cox <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
+                   data=newd)
+      newpred <- survfit(fit_cox, newdata = data[i,])
+      oosp[i,] <- c(1-newpred$surv,rep(1,(len_c-length(newpred$time))))
+      if(i==1)
+      {
+        plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
+             ylab = 'Out of stock probability', main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
+      }
+      else
+      {
+        lines(newpred$time,oosp[i,1:length(newpred$time)])
       }
     }
   }
@@ -31,3 +47,4 @@ leave_one_out <- function(data, model)
 }
 
 oosp <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest")
+oosp2 <- leave_one_out(data = model_ready_data, model = "CoxPH")
