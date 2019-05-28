@@ -5,6 +5,8 @@ library(dplyr)
 library(survival)
 library(ggplot2)
 library(ggfortify)
+library(randomForestSRC)
+
 
 oos_raw <- fread("/Users/z004189/Documents/Abhey/survival/oos_sample_data_1.csv",header=T)
 sum(oos_raw$temp_promo_weekly_sales_and_events_by_store.sku=='NULL')
@@ -164,7 +166,6 @@ for(i in 3:10)
 }
 
 ##Trying out Random survival forests
-library(randomForestSRC)
 rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
              data=model_ready_data, ntree = 100, samptype = "swr",
              seed = 18, na.action = "na.impute", nodesize = 5)
