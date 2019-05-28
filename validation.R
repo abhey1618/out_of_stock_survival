@@ -86,3 +86,41 @@ oospredict <- function(prob_matrix, threshold)
 
 rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
 coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
+
+prob_bands <- function(prob_matrix, gap)
+{
+  len_d <- dim(prob_matrix)[1]
+  prob_lr <- matrix(c(0,1), nrow = len_d, ncol = 2, byrow = TRUE)
+  for(i in 1:len_d)
+  {
+    dt <- prob_matrix[i,]
+    day <- gap[i]
+    if(anyNA(dt) == TRUE)
+    {
+      prob_lr[i,] <- c(NaN, NaN)
+      next
+    }
+    pr <- dt[as.character(day)]
+    if(length(dt[dt < pr]) == 0)
+    {
+      pl<-0
+      prob_lr[i,] <- c(pl,pr)
+      next
+    }
+    prev_day <- as.integer(names(dt[dt < pr][length(dt[dt < pr])]))
+    p_prev <- dt[dt < pr][length(dt[dt < pr])]
+    if(prev_day == (day - 1))
+    {
+      pl <- p_prev
+    }
+    else
+    {
+      pl <- approx(x = c(prev_day,day),y = c(p_prev,pr), xout = (day-1))$y
+    }
+    prob_lr[i,] <- c(pl,pr)
+  }
+  return(prob_lr)
+}
+
+rfpband <- prob_bands(prob_matrix = oosp, gap = model_ready_data$gap)
+coxpband <- prob_bands(prob_matrix = oosp2, gap = model_ready_data$gap)
