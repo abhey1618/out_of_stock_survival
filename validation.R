@@ -18,7 +18,8 @@ leave_one_out <- function(data, model)
       if(i==1)
       {
         plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
-             ylab = 'Out of stock probability', main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
+             ylab = 'Out of stock probability', 
+             main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
       }
       else
       {
@@ -34,7 +35,8 @@ leave_one_out <- function(data, model)
       if(i==1)
       {
         plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
-             ylab = 'Out of stock probability', main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
+             ylab = 'Out of stock probability', 
+             main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
       }
       else
       {
@@ -48,3 +50,39 @@ leave_one_out <- function(data, model)
 
 oosp <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest")
 oosp2 <- leave_one_out(data = model_ready_data, model = "CoxPH")
+
+oospredict <- function(prob_matrix, threshold)
+{
+  pred <- c()
+  len_d <- dim(prob_matrix)[1]
+  for(i in 1:len_d)
+  {
+    dt <- prob_matrix[i,]
+    if(anyNA(dt) == TRUE)
+    {
+      pred <- c(pred, NaN)
+      #cat(NaN, " ")
+      next
+    }
+    ind1 <- as.integer(names(dt[dt >= threshold])[1]) #Day at which it is above threshold
+    pr1 <- dt[dt >= threshold][1] #Probability at day ind1
+    if(length(dt[dt < threshold]) == 0)
+    {
+      pred <- c(pred, ind1)
+      #cat(ind1, " ")
+      next
+    }
+    ind2 <- as.integer(names(dt[dt < threshold])[length(dt[dt < threshold])]) #Day at which it is below threshold
+    pr2 <- dt[dt < threshold][length(dt[dt < threshold])] #Probability at day ind2
+    
+    #Using linear interpolation to find the day at which it crosses threshold
+    day <- approx(x = c(pr1,pr2),y = c(ind1,ind2), xout = threshold)$y
+    day <- ceiling(day)
+    #cat(day, " ")
+    pred <- c(pred,day)
+  }
+  return(pred)
+}
+
+rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
+coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
