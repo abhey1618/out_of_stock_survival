@@ -193,7 +193,12 @@ for(i in 2:9)
 # max = 0
 # for(i in 1:dim(oos_agg_all)[1])
 # {
-#   dt <- all_itm_oos_agg[(all_itm_oos_agg$sku == oos_agg_all$sku[i]) & 
+#   if(oos_agg_all$freq[i] <= 2*max) ##In the best case for more data there will be oos occuring 
+# every alternate day
+#   {
+#     next
+#   }
+#   dt <- all_itm_oos_agg[(all_itm_oos_agg$sku == oos_agg_all$sku[i]) &
 #                           (all_itm_oos_agg$co_loc_i == oos_agg_all$co_loc_i[i]),]
 #   aa <- run_locate(dt$dy_itm_loc_oos_ind)
 #   if(dim(aa)[1] > max)
