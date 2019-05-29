@@ -249,9 +249,9 @@ for(i in 2:dim(rfs$survival)[1])
 }
 
 #Out of bag
-plot(rfs$time.interest,(1-rfs$survival[1,]), 'l', xlab = 'Time in days', 
+plot(rfs$time.interest,(1-rfs$survival.oob[1,]), 'l', xlab = 'Time in days', 
      ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
-for(i in 2:dim(rfs$survival)[1])
+for(i in 2:dim(rfs$survival.oob)[1])
 {
-  lines(rfs$time.interest,(1-rfs$survival[i,]))
+  lines(rfs$time.interest,(1-rfs$survival.oob[i,]))
 }
