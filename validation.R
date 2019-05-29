@@ -1,16 +1,16 @@
 ##Validation of OOS curves
 
-leave_one_out <- function(data, model)
+leave_one_out <- function(data, model, formula)
 {
   len_d <- dim(data)[1]
   len_c <- length(unique(data$gap))
   oosp <- matrix(0,nrow = len_d,ncol = len_c)
   for(i in 1:len_d)
   {
-    newd <- data[-i,]
+    newd <<- data[-i,]
     if(model == "RandomSurvivalForest")
     {
-      rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
+      rfs <- rfsrc(formula,
                    data=newd, ntree = 100, samptype = "swr",
                    seed = 18,na.action = "na.impute", nodesize = 5)
       newpred <- predict(rfs, newdata = data[i,],na.action = "na.impute")
@@ -28,8 +28,7 @@ leave_one_out <- function(data, model)
     }
     else if(model == "CoxPH")
     {
-      fit_cox <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
-                   data=newd)
+      fit_cox <- coxph(formula, data = newd)
       newpred <- survfit(fit_cox, newdata = data[i,])
       oosp[i,] <- c(1-newpred$surv,rep(1,(len_c-length(newpred$time))))
       if(i==1)
@@ -48,8 +47,10 @@ leave_one_out <- function(data, model)
   return(oosp)
 }
 
-oosp <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest")
-oosp2 <- leave_one_out(data = model_ready_data, model = "CoxPH")
+oosp <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2)
+oosp2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ promo_ind+
+                         oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2)
 
 oospredict <- function(prob_matrix, threshold)
 {
@@ -62,6 +63,12 @@ oospredict <- function(prob_matrix, threshold)
     {
       pred <- c(pred, NaN)
       #cat(NaN, " ")
+      next
+    }
+    if(length(dt[dt >= threshold]) == 0)
+    {
+      ind1 <- as.integer(names(dt)[length(dt)])
+      pred <- c(pred, ind1)
       next
     }
     ind1 <- as.integer(names(dt[dt >= threshold])[1]) #Day at which it is above threshold
