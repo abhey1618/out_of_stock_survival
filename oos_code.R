@@ -141,16 +141,17 @@ aa$start_0 <- lag(aa$end_vec,1)
 aa$start_0[1] <- 0
 bb <- promo_extractor(oos_agg_100_949663,5)
 bb<-cbind(bb, oos_agg_100_949663$promo_ind)
-colnames(bb)[5] <- "promo_ind"
+colbb <- dim(bb)[2]
+colnames(bb)[colbb] <- "promo_ind"
 
 abb <- cbind(oos_agg_100_949663$dy_itm_loc_oos_ind,bb)
-
+colnames(abb)[(colbb+1)] <- "status"
 model_ready_data <- abb[aa$start_vec,]
 model_ready_data$gap <- aa$start_vec - aa$start_0 -1
 new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
-colnames(new)[7] <- "gap"
+colnames(new)[(colbb+2)] <- "gap"
 model_ready_data <- rbind(model_ready_data, new)
-model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
+#model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
 
 #CoxPH model
 fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
@@ -223,15 +224,17 @@ aa$start_0 <- lag(aa$end_vec,1)
 aa$start_0[1] <- 0
 bb <- promo_extractor(oos_agg_3056_949663,5)
 bb<-cbind(bb, oos_agg_3056_949663$promo_ind)
-colnames(bb)[5] <- "promo_ind"
+colbb <- dim(bb)[2]
+colnames(bb)[dim(bb)[2]] <- "promo_ind"
 
-abb <- cbind(oos_agg_3056_949663$dy_itm_loc_oos_ind,bb)
+abb <- cbind(bb,oos_agg_3056_949663$dy_itm_loc_oos_ind)
+colnames(abb)[(colbb+1)] <- "status"
 model_ready_data <- abb[aa$start_vec,]
 model_ready_data$gap <- aa$start_vec - aa$start_0 -1
 new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
-colnames(new)[7] <- "gap"
+colnames(new)[(colbb+2)] <- "gap"
 model_ready_data <- rbind(model_ready_data, new)
-model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
+#model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
 
 #Random survival forests again
 rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
