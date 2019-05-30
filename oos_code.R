@@ -54,12 +54,13 @@ run_locate <- function(x){
 #Function to generate covariates
 promo_extractor <- function(inp_dt,lg){
   #inp_dt <- all_itm_oos_agg_949663_loc_aggrgtd[1:5,]
-  #lg <- 21
+  #lg <- 30
   ln_x = dim(inp_dt)[1]
   oos_smry_1 <- rep(0,ln_x)
   oos_smry_2 <- rep(0,ln_x)
   promo_smry_1 <- rep(0,ln_x)
   promo_smry_2 <- rep(0,ln_x)
+  sales_smry <- rep(0, ln_x)
   for(i in 1:ln_x){
     #cat(" ###   I   ###" , i, "\n")
     
@@ -79,6 +80,7 @@ promo_extractor <- function(inp_dt,lg){
     #
     #
     oos_smry_1[i] <- ifelse(sum(x$dy_itm_loc_oos_ind)==0,0,(sum(x$dy_itm_loc_oos_ind)/min(lg,i)))
+    sales_smry[i] <- sum(x$ttl_units)
     #dt <- run_locate(x$dy_itm_loc_oos_ind)
     
     y <- x$dy_itm_loc_oos_ind
@@ -90,34 +92,35 @@ promo_extractor <- function(inp_dt,lg){
         if(y[j]==1 & y[j-1]==0) start_vec <- c(start_vec,j)
         if((y[j]==1 & y[j-1]==1 & j==2)) start_vec <- c(start_vec,(j-1))
         if((y[j]==0 & y[j-1]==1 & j==2)) start_vec <- c(start_vec,(j-1))
-
+        
         if(y[j]==0 & y[j-1]==1 & j <= length(y)) end_vec <- c(end_vec,(j-1))
         if(y[j]==1 & y[j-1]==0 & j == length(y)) end_vec <- c(end_vec,j)
         if(y[j]==1 & y[j-1]==1 & j == length(y)) end_vec <- c(end_vec,j)
-
-    }
+        
+      }
       #cat(" ###   i  ###",i, "  ### len  diff  : startvc - endvec ##", length(start_vec) - length(end_vec),"\n")
       #cat(" $  $  $  i  $  $  $ ", i, "###", end_vec, "###", start_vec,  "\n")
       
       #oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(end_vec)==0,0,max(end_vec - start_vec)+1)
       #cat(" ### i  ### ",i,"stvec", start_vec," endvec" , end_vec, "\n")
       
-    #}
-    #cat(" ### start_vec[1]  ### ",aa$start_vec[length(start_vec)]," ###   I   ###" , i, "\n")
-    #cat(" ### end_vec[1]  ### ",aa$end_vec[length(end_vec)]," ###   I   ###" , i, "\n")
-    
-    
-    # cat("###  K ",k,"\n")
-    
-    # if(i > lg){
-    #   x <- inp_dt[(i-lg):i,]
-    #   oos_smry_1[i] <- ifelse(sum(x$oos_agg)==0,0,(sum(x$oos_agg)/i))
-    #   tgt_ind <- which.min((aa$start_vec-i)[aa$start_vec-i > 0])
-    #   oos_smry_2[i] <- max(aa$end_vec[1:tgt_ind] - aa$start_vec[1:tgt_ind])
+      #}
+      #cat(" ### start_vec[1]  ### ",aa$start_vec[length(start_vec)]," ###   I   ###" , i, "\n")
+      #cat(" ### end_vec[1]  ### ",aa$end_vec[length(end_vec)]," ###   I   ###" , i, "\n")
+      
+      
+      # cat("###  K ",k,"\n")
+      
+      # if(i > lg){
+      #   x <- inp_dt[(i-lg):i,]
+      #   oos_smry_1[i] <- ifelse(sum(x$oos_agg)==0,0,(sum(x$oos_agg)/i))
+      #   tgt_ind <- which.min((aa$start_vec-i)[aa$start_vec-i > 0])
+      #   oos_smry_2[i] <- max(aa$end_vec[1:tgt_ind] - aa$start_vec[1:tgt_ind])
     }
     oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(start_vec)==0,0,max(end_vec - start_vec)+1)  
   }
-  return(data.frame(oos_smry_1=oos_smry_1,oos_smry_2=oos_smry_2,promo_smry_1=promo_smry_1,promo_smry_2=promo_smry_2))
+  return(data.frame(oos_smry_1=oos_smry_1,oos_smry_2=oos_smry_2,promo_smry_1=promo_smry_1,
+                    promo_smry_2=promo_smry_2, sales_smry = sales_smry))
 }
 
 all_itm_oos_agg$promo_ind <- as.numeric(all_itm_oos_agg$baseprice > all_itm_oos_agg$offer_price)
@@ -139,7 +142,7 @@ sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q")]
 aa <- run_locate(oos_agg_100_949663$dy_itm_loc_oos_ind)
 aa$start_0 <- lag(aa$end_vec,1)
 aa$start_0[1] <- 0
-bb <- promo_extractor(oos_agg_100_949663,5)
+bb <- promo_extractor(oos_agg_100_949663,30)
 bb<-cbind(bb, oos_agg_100_949663$promo_ind)
 colbb <- dim(bb)[2]
 colnames(bb)[colbb] <- "promo_ind"
@@ -222,7 +225,7 @@ sum(oos_agg_3056_949663$dy_itm_loc_oos_ind == 1)
 aa <- run_locate(oos_agg_3056_949663$dy_itm_loc_oos_ind)
 aa$start_0 <- lag(aa$end_vec,1)
 aa$start_0[1] <- 0
-bb <- promo_extractor(oos_agg_3056_949663,5)
+bb <- promo_extractor(oos_agg_3056_949663,30)
 bb<-cbind(bb, oos_agg_3056_949663$promo_ind)
 colbb <- dim(bb)[2]
 colnames(bb)[dim(bb)[2]] <- "promo_ind"
