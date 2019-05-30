@@ -1,6 +1,6 @@
 ##Validation of OOS curves
 
-leave_one_out <- function(data, model, formula)
+leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE)
 {
   len_d <- dim(data)[1]
   len_c <- length(unique(data$gap))
@@ -8,38 +8,45 @@ leave_one_out <- function(data, model, formula)
   for(i in 1:len_d)
   {
     newd <<- data[-i,]
+    nweight <<- weights[-i]
     if(model == "RandomSurvivalForest")
     {
       rfs <- rfsrc(formula,
                    data=newd, ntree = 100, samptype = "swr",
-                   seed = 18,na.action = "na.impute", nodesize = 5)
+                   seed = 18,na.action = "na.impute", nodesize = 3, case.wt = nweight)
       newpred <- predict(rfs, newdata = data[i,],na.action = "na.impute")
       oosp[i,] <- c(1-newpred$survival,rep(1,(len_c-length(rfs$time.interest))))
-      if(i==1)
+      if(plot == TRUE)
       {
-        plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
-             ylab = 'Out of stock probability', 
-             main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
-      }
-      else
-      {
-        lines(rfs$time.interest,oosp[i,1:length(rfs$time.interest)])
+        if(i==1)
+        {
+          plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
+               ylab = 'Out of stock probability', 
+               main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
+        }
+        else
+        {
+          lines(rfs$time.interest,oosp[i,1:length(rfs$time.interest)])
+        }
       }
     }
     else if(model == "CoxPH")
     {
-      fit_cox <- coxph(formula, data = newd)
+      fit_cox <- coxph(formula, data = newd, weights = nweight)
       newpred <- survfit(fit_cox, newdata = data[i,])
       oosp[i,] <- c(1-newpred$surv,rep(1,(len_c-length(newpred$time))))
-      if(i==1)
+      if(plot == TRUE)
       {
-        plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
-             ylab = 'Out of stock probability', 
-             main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
-      }
-      else
-      {
-        lines(newpred$time,oosp[i,1:length(newpred$time)])
+        if(i==1)
+        {
+          plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
+               ylab = 'Out of stock probability', 
+               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
+        }
+        else
+        {
+          lines(newpred$time,oosp[i,1:length(newpred$time)])
+        }
       }
     }
   }
@@ -47,10 +54,23 @@ leave_one_out <- function(data, model, formula)
   return(oosp)
 }
 
-oosp <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
-                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2)
-oosp2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ promo_ind+
-                         oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2)
+pr1 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry)
+exp1 <- oospredict(prob_matrix = pr1, threshold = 0.7)
+pr2 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry,
+                     weights = weight_train)
+exp2 <- oospredict(prob_matrix = pr2, threshold = 0.7)
+View(cbind(exp1,exp2,model_ready_data$gap))
+
+cpr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry)
+exp1 <- oospredict(prob_matrix = cpr1, threshold = 0.8)
+cpr2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry,
+                     weights = weight_train)
+exp2 <- oospredict(prob_matrix = cpr2, threshold = 0.8)
+View(cbind(exp1,exp2,model_ready_data$gap))
 
 oospredict <- function(prob_matrix, threshold)
 {
