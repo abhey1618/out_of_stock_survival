@@ -1,10 +1,19 @@
 ##Validation of OOS curves
 
-leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE)
+leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE, 
+                          metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                          maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                          trControl = trainControl())
 {
   len_d <- dim(data)[1]
   len_c <- length(unique(data$gap))
-  oosp <- matrix(0,nrow = len_d,ncol = len_c)
+  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
+  {
+    oosp <- matrix(0,nrow = len_d,ncol = len_c)
+  }
+  else{
+    oosp <- c()
+  }
   for(i in 1:len_d)
   {
     newd <<- data[-i,]
@@ -49,28 +58,22 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE)
         }
       }
     }
+    else
+    {
+      train_dim <- dim(newd)[2] - 2
+      be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
+                  weights = nweight, metric = metric, maximize = maximize, 
+                  trControl = trControl)
+      newpred <- predict(be, newdata = data[i,])
+      oosp <- c(oosp,newpred)
+    }
   }
-  colnames(oosp) <- sort(unique(data$gap))
+  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
+  {
+    colnames(oosp) <- sort(unique(data$gap))
+  }
   return(oosp)
 }
-
-pr1 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
-                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry)
-exp1 <- oospredict(prob_matrix = pr1, threshold = 0.7)
-pr2 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry,
-                     weights = weight_train)
-exp2 <- oospredict(prob_matrix = pr2, threshold = 0.7)
-View(cbind(exp1,exp2,model_ready_data$gap))
-
-cpr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry)
-exp1 <- oospredict(prob_matrix = cpr1, threshold = 0.8)
-cpr2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry,
-                     weights = weight_train)
-exp2 <- oospredict(prob_matrix = cpr2, threshold = 0.8)
-View(cbind(exp1,exp2,model_ready_data$gap))
 
 oospredict <- function(prob_matrix, threshold)
 {
@@ -113,6 +116,27 @@ oospredict <- function(prob_matrix, threshold)
 
 rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
 coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
+
+
+pr1 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                       +sales_rate_1+sales_rate_2+sales_rate_3)
+exp1 <- oospredict(prob_matrix = pr1, threshold = 0.7)
+pr2 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                     +sales_rate_1+sales_rate_2+sales_rate_3,weights = weight_train)
+exp2 <- oospredict(prob_matrix = pr2, threshold = 0.7)
+View(cbind(exp1,exp2,model_ready_data$gap))
+
+cpr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                      +sales_rate_1+sales_rate_2+sales_rate_3)
+exp1 <- oospredict(prob_matrix = cpr1, threshold = 0.7)
+cpr2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
+                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                      +sales_rate_1+sales_rate_2+sales_rate_3,weights = weight_train)
+exp2 <- oospredict(prob_matrix = cpr2, threshold = 0.7)
+View(cbind(exp1,exp2,model_ready_data$gap))
 
 prob_bands <- function(prob_matrix, gap)
 {
