@@ -4,7 +4,7 @@ library(heplots)
 
 dist_to_weight <- function(distance)
 {
-  weight <- 1/distance
+  weight <- 1/(distance+1)
   weight <- weight/sum(weight)
   return(weight)
 }
