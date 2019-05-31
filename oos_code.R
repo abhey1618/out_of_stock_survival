@@ -54,13 +54,17 @@ run_locate <- function(x){
 #Function to generate covariates
 promo_extractor <- function(inp_dt,lg){
   #inp_dt <- all_itm_oos_agg_949663_loc_aggrgtd[1:5,]
-  #lg <- 30
+  #lg <- 28
   ln_x = dim(inp_dt)[1]
+  int <- as.integer(lg/4) #Interval length of each of the 4 parts
   oos_smry_1 <- rep(0,ln_x)
   oos_smry_2 <- rep(0,ln_x)
   promo_smry_1 <- rep(0,ln_x)
   promo_smry_2 <- rep(0,ln_x)
   sales_smry <- rep(0, ln_x)
+  sales_rate_1 <- rep(0,ln_x)
+  sales_rate_2 <- rep(0, ln_x)
+  sales_rate_3 <- rep(0, ln_x)
   for(i in 1:ln_x){
     #cat(" ###   I   ###" , i, "\n")
     
@@ -81,7 +85,41 @@ promo_extractor <- function(inp_dt,lg){
     #
     oos_smry_1[i] <- ifelse(sum(x$dy_itm_loc_oos_ind)==0,0,(sum(x$dy_itm_loc_oos_ind)/min(lg,i)))
     sales_smry[i] <- sum(x$ttl_units)
-    #dt <- run_locate(x$dy_itm_loc_oos_ind)
+    
+    #Dividing the df x into 4 parts to see the rate of change of sales over weeks
+    if(i <= int)
+    {
+      sales_rate_1[i] <- 0
+      sales_rate_2[i] <- 0
+      sales_rate_3[i] <- 0
+    }
+    else if(i <= (2*int))
+    {
+      s1 <- sum(x$ttl_units[1:int])
+      s2 <- sum(x$ttl_units) - s1
+      sales_rate_1[i] <- (s2-s1)/s1
+      sales_rate_2[i] <- 0
+      sales_rate_3[i] <- 0
+    }
+    else if(i <= (3*int))
+    {
+      s1 <- sum(x$ttl_units[1:int])
+      s2 <- sum(x$ttl_units[1:(2*int)]) - s1
+      s3 <- sum(x$ttl_units) - s1 - s2
+      sales_rate_1[i] <- (s2-s1)/s1
+      sales_rate_2[i] <- (s3-s2)/s2
+      sales_rate_3[i] <- 0
+    }
+    else
+    {
+      s1 <- sum(x$ttl_units[1:int])
+      s2 <- sum(x$ttl_units[1:(2*int)]) - s1
+      s3 <- sum(x$ttl_units[1:(3*int)]) - s1 - s2
+      s4 <- sum(x$ttl_units) - s1 - s2 - s3
+      sales_rate_1[i] <- (s2-s1)/s1
+      sales_rate_2[i] <- (s3-s2)/s2
+      sales_rate_3[i] <- (s4-s3)/s3
+    }
     
     y <- x$dy_itm_loc_oos_ind
     start_vec <- c()
@@ -120,7 +158,8 @@ promo_extractor <- function(inp_dt,lg){
     oos_smry_2[i] <-  ifelse(length(end_vec) ==0 & length(start_vec)==0,0,max(end_vec - start_vec)+1)  
   }
   return(data.frame(oos_smry_1=oos_smry_1,oos_smry_2=oos_smry_2,promo_smry_1=promo_smry_1,
-                    promo_smry_2=promo_smry_2, sales_smry = sales_smry))
+                    promo_smry_2=promo_smry_2, sales_smry = sales_smry, sales_rate_1 = sales_rate_1,
+                    sales_rate_2 = sales_rate_2, sales_rate_3 = sales_rate_3))
 }
 
 create_data_for_model <- function(dataframe, lg)
