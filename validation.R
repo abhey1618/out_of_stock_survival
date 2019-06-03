@@ -1,5 +1,8 @@
 ##Validation of OOS curves
 
+#This function returns a probability matrix for survival analysis models and 
+#prediction vector for caret models
+#If you want prediction vector of survival anlysis models run the function oos_predict
 leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE, 
                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
@@ -75,6 +78,7 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
   return(oosp)
 }
 
+#Converts probability matrix to predictions based on threshold
 oospredict <- function(prob_matrix, threshold)
 {
   pred <- c()
