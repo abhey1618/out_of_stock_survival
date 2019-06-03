@@ -68,6 +68,7 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
                   weights = nweight, metric = metric, maximize = maximize, 
                   trControl = trControl)
       newpred <- predict(be, newdata = data[i,])
+      newpred <- ceiling(newpred)
       oosp <- c(oosp,newpred)
     }
   }
