@@ -162,6 +162,7 @@ promo_extractor <- function(inp_dt,lg){
                     sales_rate_2 = sales_rate_2, sales_rate_3 = sales_rate_3))
 }
 
+#Creates the data on which we can implement models
 create_data_for_model <- function(dataframe, lg)
 {
   aa <- run_locate(dataframe$dy_itm_loc_oos_ind)
