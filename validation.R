@@ -180,3 +180,237 @@ prob_bands <- function(prob_matrix, gap)
 
 rfpband <- prob_bands(prob_matrix = oosp, gap = model_ready_data$gap)
 coxpband <- prob_bands(prob_matrix = oosp2, gap = model_ready_data$gap)
+
+#Function to create a data frame for insample predictions for the 10 models
+thresh <- c(0.7,0.6)
+l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
+                        "CoxPH","CoxPH","bagEarth"), 
+          "thresholds" = rep(thresh,2))
+
+#Function to create insample predictions weighted models
+create_insample_predictions_df_w <- function(formula, models, data, weight,
+                                             metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                             maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                             trControl = trainControl())
+{
+  wei <<- weight
+  data_inp <<- data
+  df <- data.frame(observed = data$gap)
+  len_m <- length(models[[1]])
+  cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      cat("Yeah rfs")
+      rfs <- rfsrc(formula = formula, data=data, ntree = 100, 
+                   samptype = "swr",seed = 18, nodesize = 3, case.wt = weight)
+      pr1 <- 1 - rfs$survival
+      colnames(pr1) <- rfs$time.interest
+      p <- models[[2]][i]
+      df[paste("RFS",p,"w")] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      cat("Yeah CoxPH")
+      cox_fit <- coxph(formula = formula, data=data_inp, weights = wei)
+      pr1 <- t(1 - survfit(cox_fit, newdata = data_inp)$surv)
+      colnames(pr1) <- survfit(cox_fit, newdata = data_inp)$time
+      p <- models[[2]][i]
+      df[paste("CoxPH",p,"w")] <- oospredict(pr1, p)
+    }
+    else
+    {
+      train_dim <- dim(data)[2] - 2
+      cat("Yeah Caret")
+      newm<- train(x = data[,1:train_dim], y = data$gap, method = model, 
+                   weights = weight, metric = metric, maximize = maximize, 
+                   trControl = trControl)
+      newpred <- predict(newm, newdata = data[,1:train_dim])
+      newpred <- ceiling(newpred)
+      df[paste(model)] <- newpred
+    }
+  }
+  return(df)
+}
+
+in_pred <- create_insample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
+                                              oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                                            +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
+                                            data = model_ready_data, weight = weight_train,
+                                            metric = "MYM", maximize = FALSE, 
+                                            trControl = trainControl(summaryFunction = my_metric))
+
+l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
+                        "CoxPH","CoxPH","rf"), 
+          "thresholds" = rep(thresh,2))
+
+#Creates in sample predictions for unweighted models
+create_insample_predictions_df <- function(formula, models, data,
+                                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                           trControl = trainControl())
+{
+  data_inp <<- data
+  df <- data.frame(observed = data$gap)
+  len_m <- length(models[[1]])
+  cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      cat("Yeah rfs")
+      rfs <- rfsrc(formula = formula, data=data, ntree = 100, 
+                   samptype = "swr",seed = 18, nodesize = 3)
+      pr1 <- 1 - rfs$survival
+      colnames(pr1) <- rfs$time.interest
+      p <- models[[2]][i]
+      df[paste("RFS",p)] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      cat("Yeah CoxPH")
+      cox_fit <- coxph(formula = formula,data=data_inp)
+      pr1 <- t(1 - survfit(cox_fit, newdata = data_inp)$surv)
+      colnames(pr1) <- survfit(cox_fit, newdata = data_inp)$time
+      p <- models[[2]][i]
+      df[paste("CoxPH",p)] <- oospredict(pr1, p)
+    }
+    else
+    {
+      train_dim <- dim(data)[2] - 2
+      cat("Yeah Caret")
+      newm<- train(x = model_ready_data[,1:train_dim], y = model_ready_data$gap, method = model, 
+                   metric = metric, maximize = maximize, trControl = trControl)
+      newpred <- predict(newm, newdata = data[,1:train_dim])
+      newpred <- ceiling(newpred)
+      df[paste(model)] <- newpred
+    }
+  }
+  return(df)
+}
+
+in_pred2 <- create_insample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
+                                             oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                                           +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
+                                           data = model_ready_data,
+                                           metric = "MYM", maximize = FALSE, 
+                                           trControl = trainControl(summaryFunction = my_metric))
+
+in_pred <- cbind(in_pred,in_pred2[-1])
+write.csv(in_pred, file = "/Users/z004189/Documents/Abhey/survival/insample_pred672_17508944.csv")
+
+l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
+                        "CoxPH","CoxPH","bagEarth"), 
+          "thresholds" = rep(thresh,2))
+
+#Function to create out of sample predictions
+create_oosample_predictions_df_w <- function(formula, models, data, weights,
+                                             metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                             maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                             trControl = trainControl())
+{
+  df <- data.frame(observed = data$gap)
+  len_m <- length(models[[1]])
+  cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      cat("Yeah rfs")
+      pr1 <- leave_one_out(data = data, model = model, formula = formula, weights = weights, 
+                           plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("RFS",p,"w")] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      cat("Yeah CoxPH")
+      pr1 <- leave_one_out(data = data, model = model, formula = formula, weights = weights, 
+                           plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("CoxPH",p,"w")] <- oospredict(pr1, p)
+    }
+    else
+    {
+      cat("Yeah Caret")
+      newpred <- leave_one_out(data = data, model = model, formula = formula, weights = weights, 
+                               plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
+      #newpred <- ceiling(newpred)
+      df[paste(model,"w")] <- newpred
+    }
+  }
+  return(df)
+}
+
+looval_pred <- create_oosample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
+                                                  oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                                                +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
+                                                data = model_ready_data, weights = weight_train,
+                                                metric = "MYM", maximize = FALSE, 
+                                                trControl = trainControl(summaryFunction = my_metric))
+
+l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
+                        "CoxPH","CoxPH","rf"), 
+          "thresholds" = rep(thresh,2))
+
+#Creates out of sample leave one out predictions for unweighted models
+create_oosample_predictions_df <- function(formula, models, data,
+                                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                           trControl = trainControl())
+{
+  df <- data.frame(observed = data$gap)
+  len_m <- length(models[[1]])
+  cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      cat("Yeah rfs")
+      pr1 <- leave_one_out(data = data, model = model, formula = formula, 
+                           plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("RFS",p)] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      cat("Yeah CoxPH")
+      pr1 <- leave_one_out(data = data, model = model, formula = formula, 
+                           plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("CoxPH",p)] <- oospredict(pr1, p)
+    }
+    else
+    {
+      cat("Yeah Caret")
+      newpred <- leave_one_out(data = data, model = model, formula = formula,
+                               plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
+      #newpred <- ceiling(newpred)
+      df[paste(model)] <- newpred
+    }
+  }
+  return(df)
+}
+
+looval_pred2 <- create_oosample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
+                                                 oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                                               +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
+                                               data = model_ready_data,
+                                               metric = "MYM", maximize = FALSE, 
+                                               trControl = trainControl(summaryFunction = my_metric))
+
+looval_pred <- cbind(looval_pred,looval_pred2[-1])
+write.csv(looval_pred, file = "/Users/z004189/Documents/Abhey/survival/oosample_pred672_17508944.csv")
