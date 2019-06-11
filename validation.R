@@ -6,7 +6,7 @@
 leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE, 
                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
-                          trControl = trainControl())
+                          trControl = trainControl(), tau = 0.5)
 {
   len_d <- dim(data)[1]
   len_c <- length(unique(data$gap))
@@ -60,6 +60,12 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
           lines(newpred$time,oosp[i,1:length(newpred$time)])
         }
       }
+    }
+    else if(model == "QuantReg")
+    {
+      rqfit <- rq(formula = formula, data = newd, tau = tau)
+      newpred <- predict(rqfit, newdata = data[i,])
+      oosp <- c(oosp, newpred)
     }
     else
     {
