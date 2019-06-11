@@ -53,7 +53,7 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
         {
           plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
                ylab = 'Out of stock probability', 
-               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1)) 
+               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1), xlim = c(0,50)) 
         }
         else
         {
@@ -123,9 +123,9 @@ rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
 coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
 
 
-pr1 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
+pr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
                         promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                       +sales_rate_1+sales_rate_2+sales_rate_3)
+                       +sales_rate_1+sales_rate_2+sales_rate_3, plot = TRUE)
 exp1 <- oospredict(prob_matrix = pr1, threshold = 0.7)
 pr2 <- leave_one_out(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
