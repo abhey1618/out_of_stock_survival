@@ -6,6 +6,7 @@ library(survival)
 library(ggplot2)
 library(ggfortify)
 library(randomForestSRC)
+library(coxme)
 
 
 oos_raw <- fread("/Users/z004189/Documents/Abhey/survival/oos_sample_data_1.csv",header=T)
@@ -180,7 +181,7 @@ create_data_for_model <- function(dataframe, lg)
   new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
   colnames(new)[(colbb+2)] <- "gap"
   model_ready_data <- rbind(model_ready_data, new)
-  #model_ready_data$status <- c(rep(1,(length(model_ready_data$gap)-1)),0)
+  model_ready_data$sku <- rep(dataframe$sku[1], dim(model_ready_data)[1])
   
   return(model_ready_data)
 }
