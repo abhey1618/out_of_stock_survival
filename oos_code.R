@@ -197,7 +197,7 @@ oos_agg_100_949663 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 949663) & (all_itm
 sum(oos_agg_100_949663$dy_itm_loc_oos_ind == 1)
 
 #Verifying previous day's ending hand is next day's starting hand
-sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q")]
+sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q","ttl_units")]
 #Surprisingly, its not at a lot of places
 
 #Creating data on which we can use survival anlysis
