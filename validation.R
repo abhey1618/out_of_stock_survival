@@ -125,6 +125,88 @@ oospredict <- function(prob_matrix, threshold)
   return(pred)
 }
 
+leave_one_out_new <- function(formula, data, model,validation_data , weights = NULL, plot = TRUE, 
+                          metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                          maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                          trControl = trainControl(), tau = 0.5)
+{
+  len_d <- dim(data)[1]
+  len_c <- length(unique(data$gap))
+  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
+  {
+    oosp <- matrix(0,nrow = len_d,ncol = len_c)
+  }
+  else{
+    oosp <- c()
+  }
+  for(i in 2:len_d)
+  {
+    newd <<- data[-i,]
+    nweight <<- weights[-i]
+    if(model == "RandomSurvivalForest")
+    {
+      rfs <- rfsrc(formula,
+                   data=newd, ntree = 100, samptype = "swr",
+                   seed = 18,na.action = "na.impute", nodesize = 3, case.wt = nweight)
+      newpred <- predict(rfs, newdata = validation_data[(i-1),],na.action = "na.impute")
+      oosp[i,] <- c(1-newpred$survival,rep(1,(len_c-length(rfs$time.interest))))
+      if(plot == TRUE)
+      {
+        if(i==1)
+        {
+          plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
+               ylab = 'Out of stock probability', 
+               main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
+        }
+        else
+        {
+          lines(rfs$time.interest,oosp[i,1:length(rfs$time.interest)])
+        }
+      }
+    }
+    else if(model == "CoxPH")
+    {
+      fit_cox <- coxph(formula, data = newd, weights = nweight)
+      newpred <- survfit(fit_cox, newdata = validation_data[(i-1),])
+      oosp[i,] <- c(1-newpred$surv,rep(1,(len_c-length(newpred$time))))
+      if(plot == TRUE)
+      {
+        if(i==1)
+        {
+          plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
+               ylab = 'Out of stock probability', 
+               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1), xlim = c(0,50)) 
+        }
+        else
+        {
+          lines(newpred$time,oosp[i,1:length(newpred$time)])
+        }
+      }
+    }
+    else if(model == "QuantReg")
+    {
+      rqfit <- rq(formula = formula, data = newd, tau = tau)
+      newpred <- predict(rqfit, newdata = validation_data[(i-1),])
+      oosp <- c(oosp, newpred)
+    }
+    else
+    {
+      train_dim <- dim(newd)[2] - 2
+      be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
+                  weights = nweight, metric = metric, maximize = maximize, 
+                  trControl = trControl)
+      newpred <- predict(be, newdata = validation_data[(i-1),])
+      newpred <- ceiling(newpred)
+      oosp <- c(oosp,newpred)
+    }
+  }
+  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
+  {
+    colnames(oosp) <- sort(unique(data$gap))
+  }
+  return(oosp)
+}
+
 rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
 coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
 
