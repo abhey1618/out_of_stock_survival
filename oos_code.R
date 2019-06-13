@@ -7,7 +7,7 @@ library(ggplot2)
 library(ggfortify)
 library(randomForestSRC)
 library(coxme)
-
+library(quantreg)
 
 oos_raw <- fread("/Users/z004189/Documents/Abhey/survival/oos_sample_data_1.csv",header=T)
 sum(oos_raw$temp_promo_weekly_sales_and_events_by_store.sku=='NULL')
@@ -24,7 +24,8 @@ oos_raw$ind_elig_istk_out_of_stk_f <- as.numeric(oos_raw$sum_elig_istk_out_of_st
 
 #create oos flag from boh
 oos_raw$dy_itm_loc_oos_ind <- 1 - as.numeric(oos_raw$sum_boh_q > 0)
-
+oos_raw$sum_eoh_q <- oos_raw$sum_eoh_q/oos_raw$ttl_units
+oos_raw$sum_boh_q <- oos_raw$sum_boh_q/oos_raw$ttl_units
 
 oos_sorted <- oos_raw[,c("sku","co_loc_i","p_sls_d","p_week_start_date","co_loc_n","istk_appl_f","sum_elig_istk_out_of_stk_f",
                          "sum_boh_q","sum_eoh_q","circ_tpc_stack","baseprice","offer_price_orig","exit_price","circ_f","tpc_f",
@@ -49,6 +50,40 @@ run_locate <- function(x){
     if(x[i]==0 & x[i-1]==1 & i <= length(x)) end_vec <- c(end_vec,(i-1))
     if(x[i]==1 & i == length(x)) end_vec <- c(end_vec,i)
   }
+  return(data.frame(start_vec=start_vec,end_vec=end_vec))
+}
+
+#Function to locate censoring
+inv_up_locate <- function(x,y){
+  start_vec <- c()
+  end_vec <- c()
+  mark1 <- 0
+  mark2 <- 0
+  for(i in 2:length(x)){
+    if(y[i] == 1 & mark2 == 0)
+    {
+      mark1 <- i
+      mark2 <- 1
+    }
+    if((x[i]>0 & i==2)) start_vec <- c(start_vec,1)
+    if(x[i] > x[i-1])
+    {
+      start_vec <- c(start_vec,i)
+      if(y[i-1] == 0)
+      {
+        end_vec <- c(end_vec,(i-1))
+      }
+      else
+      {
+        end_vec <- c(end_vec, mark1)
+        mark2 <- 0
+      }
+    }
+    
+    #if(x[i]==0 & x[i-1]==1 & i <= length(x)) end_vec <- c(end_vec,(i-1))
+    #if(x[i]==1 & i == length(x)) end_vec <- c(end_vec,i)
+  }
+  end_vec <- c(end_vec,length(x))
   return(data.frame(start_vec=start_vec,end_vec=end_vec))
 }
 
@@ -186,6 +221,33 @@ create_data_for_model <- function(dataframe, lg)
   return(model_ready_data)
 }
 
+#creates data based on censoring according to inv_up_locate
+create_data_for_model_new <- function(dataframe, lg)
+{
+  aa <- inv_up_locate(dataframe$sum_boh_q,dataframe$dy_itm_loc_oos_ind)
+  #aa$start_0 <- lag(aa$end_vec,1)
+  #aa$start_0[1] <- 0
+  bb <- promo_extractor(dataframe,lg)
+  bb<-cbind(bb, dataframe$promo_ind)
+  colbb <- dim(bb)[2]
+  colnames(bb)[colbb] <- "promo_ind"
+  bb<-cbind(bb, dataframe$sum_boh_q)
+  colbb <- dim(bb)[2]
+  colnames(bb)[colbb] <- "sum_boh_q"
+  
+  abb <- cbind(bb,dataframe$dy_itm_loc_oos_ind)
+  colnames(abb)[(colbb+1)] <- "status"
+  model_ready_data <- abb[aa$start_vec,]
+  model_ready_data$gap <- aa$end_vec - aa$start_vec + 1
+  # new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
+  # colnames(new)[(colbb+2)] <- "gap"
+  # model_ready_data <- rbind(model_ready_data, new)
+  #model_ready_data <- model_ready_data[-1,]
+  model_ready_data$sku <- rep(dataframe$sku[1], dim(model_ready_data)[1])
+  
+  return(model_ready_data)
+}
+
 all_itm_oos_agg$promo_ind <- as.numeric(all_itm_oos_agg$baseprice > all_itm_oos_agg$offer_price)
 
 #Frequency of out of stocks for each item, location pair
@@ -202,7 +264,7 @@ sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q","t
 #Surprisingly, its not at a lot of places
 
 #Creating data on which we can use survival anlysis
-model_ready_data <- create_data_for_model(oos_agg_100_949663, 30)
+model_ready_data <- create_data_for_model_new(oos_agg_100_949663, 30)
 
 #CoxPH model
 fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
