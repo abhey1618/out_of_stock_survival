@@ -68,7 +68,7 @@ inv_up_locate <- function(x,y){
       mark2 <- 1
     }
     if((x[i]>0 & i==2)) start_vec <- c(start_vec,1)
-    if(x[i] > x[i-1])
+    if(x[i] > x[i-1] & y[i] == 0)
     {
       start_vec <- c(start_vec,i)
       if(y[i-1] == 0)
