@@ -60,6 +60,8 @@ inv_up_locate <- function(x,y){
   mark1 <- 0
   mark2 <- 0
   for(i in 2:length(x)){
+    #mark1 is to remember start of an oos
+    #mark2 is to see if an oos is still going on or not
     if(y[i] == 1 & mark2 == 0)
     {
       mark1 <- i
