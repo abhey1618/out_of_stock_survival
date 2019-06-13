@@ -237,14 +237,14 @@ create_data_for_model_new <- function(dataframe, lg)
   colbb <- dim(bb)[2]
   colnames(bb)[colbb] <- "sum_boh_q"
   
-  abb <- cbind(bb,dataframe$dy_itm_loc_oos_ind)
+  abb <- cbind(bb,lag(dataframe$dy_itm_loc_oos_ind,1))
   colnames(abb)[(colbb+1)] <- "status"
   model_ready_data <- abb[aa$start_vec,]
   model_ready_data$gap <- aa$end_vec - aa$start_vec + 1
   # new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
   # colnames(new)[(colbb+2)] <- "gap"
   # model_ready_data <- rbind(model_ready_data, new)
-  #model_ready_data <- model_ready_data[-1,]
+  model_ready_data <- model_ready_data[-1,]
   model_ready_data$sku <- rep(dataframe$sku[1], dim(model_ready_data)[1])
   
   return(model_ready_data)
@@ -267,16 +267,18 @@ sub<-oos_agg_100_949663[,c("sku","co_loc_i","p_sls_d","sum_boh_q","sum_eoh_q","t
 
 #Creating data on which we can use survival anlysis
 model_ready_data <- create_data_for_model_new(oos_agg_100_949663, 30)
+model_ready_data <- na.omit(model_ready_data)
 
 #CoxPH model
-fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
-                              promo_smry_2, data=model_ready_data)
+fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
+                            +sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q, 
+                            data=model_ready_data)
 
 #OOS curve
 nfit <- survfit(fit_oos_surv_model, newdata = model_ready_data)
-plot(nfit$time,(1-nfit$surv[,2]), 'l', xlab = 'Time in days', 
+plot(nfit$time,(1-nfit$surv[,1]), 'l', xlab = 'Time in days', 
      ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
-for(i in 3:10)
+for(i in 2:dim(model_ready_data)[1])
 {
   lines(nfit$time,(1-nfit$surv[,i]))
 }
