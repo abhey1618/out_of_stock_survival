@@ -265,7 +265,8 @@ leave_one_out_cnsr <- function(data, model, formula, weights = NULL, plot = TRUE
           plt <- 1
           plot(newpred$time,oosp[j,1:length(newpred$time)], 'l', xlab = 'Time in days', 
                ylab = 'Out of stock probability', 
-               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1), xlim = c(0,50)) 
+               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1), 
+               xlim = c(0,max(newpred$time))) 
         }
         else
         {
@@ -309,7 +310,7 @@ pr2 <- leave_one_out_cnsr(data = model_ready_data, model = "RandomSurvivalForest
                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
                      +sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q)#,weights = weight_train)
 exp2 <- oospredict(prob_matrix = pr2, threshold = 0.7)
-View(cbind(exp2,model_ready_data[model_ready_data$status == 1,]$gap))
+View(cbind(exp1,exp2,model_ready_data[model_ready_data$status == 1,]$gap))
 
 cpr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
