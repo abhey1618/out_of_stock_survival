@@ -270,9 +270,9 @@ model_ready_data <- create_data_for_model_new(oos_agg_100_949663, 30)
 model_ready_data <- na.omit(model_ready_data)
 
 #CoxPH model
-fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                            +sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q, 
-                            data=model_ready_data)
+fit_oos_surv_model <- coxph(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
+                              promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+
+                              sum_boh_q, data=model_ready_data)
 
 #OOS curve
 nfit <- survfit(fit_oos_surv_model, newdata = model_ready_data)
@@ -280,29 +280,30 @@ plot(nfit$time,(1-nfit$surv[,1]), 'l', xlab = 'Time in days',
      ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
 for(i in 2:dim(model_ready_data)[1])
 {
-  lines(nfit$time,(1-nfit$surv[,i]))
+  if(model_ready_data$status[i] == 1) lines(nfit$time,(1-nfit$surv[,i]))
 }
 
 ##Trying out Random survival forests
-rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
+rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2
+             +sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q,
              data=model_ready_data, ntree = 100, samptype = "swr",
              seed = 18, na.action = "na.impute", nodesize = 5)
 fore<-rfs$survival
 funoob <- rfs$survival.oob
 
-plot(rfs$time.interest,(1-rfs$survival.oob[1,]), 'l', xlab = 'Time in days', 
+plot(rfs$time.interest,(1-rfs$survival[1,]), 'l', xlab = 'Time in days', 
      ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
-for(i in 2:10)
+for(i in 2:dim(model_ready_data)[1])
 {
-  lines(rfs$time.interest,(1-rfs$survival.oob[i,]))
+  if(model_ready_data$status[i] == 1) lines(rfs$time.interest,(1-rfs$survival[i,]))
 }
 newpred <- predict(rfs, newdata = model_ready_data[1:10,])
 newpred$survival
 plot(rfs$time.interest,(1-newpred$survival[1,]), 'l', xlab = 'Time in days', 
      ylab = 'Out of stock probability', main = 'Out of stock probability curves', ylim = c(0,1))
-for(i in 2:9)
+for(i in 2:dim(model_ready_data)[1])
 {
-  lines(rfs$time.interest,(1-newpred$survival[i,]))
+  if(model_ready_data$status[i] == 1) lines(rfs$time.interest,(1-newpred$survival[i,]))
 }
 
 #The below commented part takes a lot of time, 
@@ -336,7 +337,7 @@ oos_agg_3056_949663 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 949663) & (all_it
 sum(oos_agg_3056_949663$dy_itm_loc_oos_ind == 1)
 
 #Creating data on which we can use survival anlysis
-model_ready_data <- create_data_for_model(oos_agg_3056_949663, 30)
+model_ready_data <- create_data_for_model_new(oos_agg_3056_949663, 30)
 
 #Random survival forests again
 rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
