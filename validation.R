@@ -403,7 +403,7 @@ create_insample_predictions_df_w <- function(formula, models, data, weight,
     }
     else
     {
-      train_dim <- dim(data)[2] - 2
+      train_dim <- dim(data)[2] - 3
       cat("Yeah Caret")
       newm<- train(x = data[,1:train_dim], y = data$gap, method = model, 
                    weights = weight, metric = metric, maximize = maximize, 
@@ -462,7 +462,7 @@ create_insample_predictions_df <- function(formula, models, data,
     }
     else
     {
-      train_dim <- dim(data)[2] - 2
+      train_dim <- dim(data)[2] - 3
       cat("Yeah Caret")
       newm<- train(x = model_ready_data[,1:train_dim], y = model_ready_data$gap, method = model, 
                    metric = metric, maximize = maximize, trControl = trControl)
