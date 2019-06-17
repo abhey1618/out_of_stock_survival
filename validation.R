@@ -69,7 +69,7 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
     }
     else
     {
-      train_dim <- dim(newd)[2] - 2
+      train_dim <- dim(newd)[2] - 3
       be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
                   weights = nweight, metric = metric, maximize = maximize, 
                   trControl = trControl)
@@ -191,7 +191,7 @@ leave_one_out_new <- function(formula, data, model,validation_data , weights = N
     }
     else
     {
-      train_dim <- dim(newd)[2] - 2
+      train_dim <- dim(newd)[2] - 3
       be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
                   weights = nweight, metric = metric, maximize = maximize, 
                   trControl = trControl)
@@ -282,7 +282,7 @@ leave_one_out_cnsr <- function(data, model, formula, weights = NULL, plot = TRUE
     }
     else
     {
-      train_dim <- dim(newd)[2] - 2
+      train_dim <- dim(newd)[2] - 3
       be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
                   weights = nweight, metric = metric, maximize = maximize, 
                   trControl = trControl)
@@ -416,10 +416,9 @@ create_insample_predictions_df_w <- function(formula, models, data, weight,
   return(df)
 }
 
-in_pred <- create_insample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
-                                              oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                            +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
-                                            data = model_ready_data, weight = weight_train,
+in_pred <- create_insample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
+                                              promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+
+                                              refill_2, models = l,data = model_ready_data, weight = weight_train,
                                             metric = "MYM", maximize = FALSE, 
                                             trControl = trainControl(summaryFunction = my_metric))
 
@@ -477,13 +476,13 @@ create_insample_predictions_df <- function(formula, models, data,
 
 in_pred2 <- create_insample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                              oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                           +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
-                                           data = model_ready_data,
+                                           +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                           models = l, data = model_ready_data,
                                            metric = "MYM", maximize = FALSE, 
                                            trControl = trainControl(summaryFunction = my_metric))
 
 in_pred <- cbind(in_pred,in_pred2[-1])
-write.csv(in_pred, file = "/Users/z004189/Documents/Abhey/survival/insample_pred672_17508944.csv")
+write.csv(in_pred, file = "/Users/z004189/Documents/Abhey/survival/Results/insample_pred3056_lays.csv")
 
 l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
                         "CoxPH","CoxPH","bagEarth"), 
@@ -533,8 +532,8 @@ create_oosample_predictions_df_w <- function(formula, models, data, weights,
 
 looval_pred <- create_oosample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                                   oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                                +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
-                                                data = model_ready_data, weights = weight_train,
+                                                +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                                models = l,data = model_ready_data, weights = weight_train,
                                                 metric = "MYM", maximize = FALSE, 
                                                 trControl = trainControl(summaryFunction = my_metric))
 
@@ -586,10 +585,10 @@ create_oosample_predictions_df <- function(formula, models, data,
 
 looval_pred2 <- create_oosample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                                  oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                               +sales_rate_1+sales_rate_2+sales_rate_3, models = l,
-                                               data = model_ready_data,
+                                               +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                               models = l,data = model_ready_data,
                                                metric = "MYM", maximize = FALSE, 
                                                trControl = trainControl(summaryFunction = my_metric))
 
 looval_pred <- cbind(looval_pred,looval_pred2[-1])
-write.csv(looval_pred, file = "/Users/z004189/Documents/Abhey/survival/oosample_pred672_17508944.csv")
+write.csv(looval_pred, file = "/Users/z004189/Documents/Abhey/survival/Results/oosample_pred3056_lays.csv")
