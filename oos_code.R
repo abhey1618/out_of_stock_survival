@@ -103,6 +103,8 @@ promo_extractor <- function(inp_dt,lg){
   sales_rate_1 <- rep(0,ln_x)
   sales_rate_2 <- rep(0, ln_x)
   sales_rate_3 <- rep(0, ln_x)
+  refill_1 <- rep(0,ln_x)
+  refill_2 <- rep(0,ln_x)
   for(i in 1:ln_x){
     #cat(" ###   I   ###" , i, "\n")
     
@@ -124,6 +126,27 @@ promo_extractor <- function(inp_dt,lg){
     oos_smry_1[i] <- ifelse(sum(x$dy_itm_loc_oos_ind)==0,0,(sum(x$dy_itm_loc_oos_ind)/min(lg,i)))
     sales_smry[i] <- sum(x$ttl_units)
     
+    fr <- 0
+    mx_rfll <- 0
+    temp <- 0
+    if(i >= 3)
+    {
+      boh <- x$sum_boh_q
+      for(j in 2:length(boh))
+      {
+        if(boh[j] > boh[(j-1)])
+        {
+          fr <- fr+1
+          if(j - temp > mx_rfll)
+          {
+            mx_rfll <- j - temp
+            temp <- j
+          }
+        }
+      }
+    }
+    refill_1[i] <- fr
+    refill_2[i] <- mx_rfll
     #Dividing the df x into 4 parts to see the rate of change of sales over weeks
     if(i <= int)
     {
@@ -197,7 +220,8 @@ promo_extractor <- function(inp_dt,lg){
   }
   return(data.frame(oos_smry_1=oos_smry_1,oos_smry_2=oos_smry_2,promo_smry_1=promo_smry_1,
                     promo_smry_2=promo_smry_2, sales_smry = sales_smry, sales_rate_1 = sales_rate_1,
-                    sales_rate_2 = sales_rate_2, sales_rate_3 = sales_rate_3))
+                    sales_rate_2 = sales_rate_2, sales_rate_3 = sales_rate_3, refill_1 = refill_1,
+                    refill_2 = refill_2))
 }
 
 #Creates the data on which we can implement models
@@ -337,11 +361,11 @@ oos_agg_3056_949663 <- all_itm_oos_agg[(all_itm_oos_agg$sku == 949663) & (all_it
 sum(oos_agg_3056_949663$dy_itm_loc_oos_ind == 1)
 
 #Creating data on which we can use survival anlysis
-model_ready_data <- create_data_for_model_new(oos_agg_3056_949663, 30)
+model_ready_data <- create_data_for_model(oos_agg_3056_949663, 30)
 
 #Random survival forests again
 rfs <- rfsrc(Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2,
-             data=model_ready_data, ntree = 100, samptype = "swr",
+             data=model_ready_data, ntree = 100, samptype = "swr", importance = TRUE,
              seed = 18, na.action = "na.impute", nodesize = 5)
 #Inbag
 plot(rfs$time.interest,(1-rfs$survival[1,]), 'l', xlab = 'Time in days', 
