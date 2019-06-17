@@ -14,16 +14,16 @@ dist_to_weight <- function(distance)
 # Not giving good results
 
 #Gives us the number of covariates
-train_dim <- dim(model_ready_data)[2] - 2
+train_dim <- dim(model_ready_data)[2] - 3
 
 #Robust Mahalanobis Distance for weighting
 #Doing this over 1:(train_dim - 1) because can ignore promo_ind for weighting
-weight_train <- dist_to_weight(Moutlier(model_ready_data[,c((1:(train_dim-1)),dim(model_ready_data)[2])]
+weight_train <- dist_to_weight(Moutlier(model_ready_data[,1:(train_dim-1)]
                                         ,plot = FALSE)$rd)
 
 appl_weight <- function(x)
 {
-  ifelse((x > 0), 0.6, 0.4)
+  ifelse((x > 0), 1.2, 0.8)
 }
 
 my_metric <- function(data, lev = NULL, model = NULL) 
