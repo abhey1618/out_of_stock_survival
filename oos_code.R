@@ -261,9 +261,9 @@ create_data_for_model_new <- function(dataframe, lg)
   colbb <- dim(bb)[2]
   colnames(bb)[colbb] <- "sum_boh_q"
   
-  abb <- cbind(bb,lag(dataframe$dy_itm_loc_oos_ind,1))
-  colnames(abb)[(colbb+1)] <- "status"
-  model_ready_data <- abb[aa$start_vec,]
+  #abb <- cbind(bb,lag(dataframe$dy_itm_loc_oos_ind,1))
+  model_ready_data <- bb[aa$start_vec,]
+  model_ready_data$status <- dataframe$dy_itm_loc_oos_ind[aa$end_vec]
   model_ready_data$gap <- aa$end_vec - aa$start_vec + 1
   # new<-cbind(tail(abb,1), (dim(abb)[1] - tail(aa$end_vec,1)))
   # colnames(new)[(colbb+2)] <- "gap"
