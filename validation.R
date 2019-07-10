@@ -3,7 +3,7 @@
 #This function returns a probability matrix for survival analysis models and 
 #prediction vector for caret models
 #If you want prediction vector of survival anlysis models run the function oos_predict
-leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE, 
+leave_one_out <- function(data, model, formula = NULL, formula2 = NULL, weights = NULL, plot = TRUE, 
                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                           trControl = trainControl(), tau = 0.5)
@@ -63,14 +63,14 @@ leave_one_out <- function(data, model, formula, weights = NULL, plot = TRUE,
     }
     else if(model == "QuantReg")
     {
-      rqfit <- rq(formula = formula, data = newd, tau = tau)
+      rqfit <- rq(formula = formula2, data = newd, tau = tau)
       newpred <- predict(rqfit, newdata = data[i,])
       oosp <- c(oosp, newpred)
     }
     else
     {
       train_dim <- dim(newd)[2] - 3
-      be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
+      be <- train(form = formula2, data = newd, method = model, 
                   weights = nweight, metric = metric, maximize = maximize, 
                   trControl = trControl)
       newpred <- predict(be, newdata = data[i,])
@@ -233,8 +233,7 @@ leave_one_out_cnsr <- function(data, model, formula, weights = NULL, plot = TRUE
     nweight <<- weights[-i]
     if(model == "RandomSurvivalForest")
     {
-      rfs <- rfsrc(formula,
-                   data=newd, ntree = 100, samptype = "swr",
+      rfs <- rfsrc(formula,data=newd, ntree = 100, samptype = "swr",
                    seed = 18,na.action = "na.impute", nodesize = 3, case.wt = nweight)
       newpred <- predict(rfs, newdata = data[i,],na.action = "na.impute")
       oosp[j,] <- c(1-newpred$survival,rep(1,(len_c-length(rfs$time.interest))))
@@ -367,7 +366,7 @@ l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
           "thresholds" = rep(thresh,2))
 
 #Function to create insample predictions weighted models
-create_insample_predictions_df_w <- function(formula, models, data, weight,
+create_insample_predictions_df_w <- function(formula, formula2, models, data, weight,
                                              metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                              maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                              trControl = trainControl())
@@ -376,47 +375,49 @@ create_insample_predictions_df_w <- function(formula, models, data, weight,
   data_inp <<- data
   df <- data.frame(observed = data$gap)
   len_m <- length(models[[1]])
-  cat("len"," " ,len_m, "\n")
+  ##cat("len"," " ,len_m, "\n")
   for(i in 1:len_m)
   {
-    cat(i, "\n")
+    #cat(i, "\n")
     #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
     model = models[[1]][i]
     if(model == "RandomSurvivalForest")
     {
-      cat("Yeah rfs")
-      rfs <- rfsrc(formula = formula, data=data, ntree = 100, 
+      #cat("Yeah rfs")
+      rfs <- rfsrc(formula = formula, data=data_inp, ntree = 100, 
                    samptype = "swr",seed = 18, nodesize = 3, case.wt = weight)
       pr1 <- 1 - rfs$survival
       colnames(pr1) <- rfs$time.interest
       p <- models[[2]][i]
-      df[paste("RFS",p,"w")] <- oospredict(pr1, p)
+      df[paste("RFS",p,"w", sep = "_")] <- oospredict(pr1, p)
     }
     else if(model == "CoxPH")
     {
-      cat("Yeah CoxPH")
+      #cat("Yeah CoxPH")
       cox_fit <- coxph(formula = formula, data=data_inp, weights = wei)
       pr1 <- t(1 - survfit(cox_fit, newdata = data_inp)$surv)
       colnames(pr1) <- survfit(cox_fit, newdata = data_inp)$time
       p <- models[[2]][i]
-      df[paste("CoxPH",p,"w")] <- oospredict(pr1, p)
+      df[paste("CoxPH",p,"w", sep = "_")] <- oospredict(pr1, p)
     }
     else
     {
       train_dim <- dim(data)[2] - 3
-      cat("Yeah Caret")
-      newm<- train(x = data[,1:train_dim], y = data$gap, method = model, 
-                   weights = weight, metric = metric, maximize = maximize, 
+      #cat("Yeah Caret")
+      newm<- train(form = formula2, data = data_inp, method = model, 
+                   weights = wei, metric = metric, maximize = maximize, 
                    trControl = trControl)
       newpred <- predict(newm, newdata = data[,1:train_dim])
       newpred <- ceiling(newpred)
-      df[paste(model)] <- newpred
+      df[paste(model,"w",sep = "_")] <- newpred
     }
   }
   return(df)
 }
 
 in_pred <- create_insample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
+                                              promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+
+                                              refill_2,formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
                                               promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+
                                               refill_2, models = l,data = model_ready_data, weight = weight_train,
                                             metric = "MYM", maximize = FALSE, 
@@ -427,7 +428,7 @@ l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
           "thresholds" = rep(thresh,2))
 
 #Creates in sample predictions for unweighted models
-create_insample_predictions_df <- function(formula, models, data,
+create_insample_predictions_df <- function(formula, formula2, models, data,
                                            metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                            maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                            trControl = trainControl())
@@ -435,36 +436,36 @@ create_insample_predictions_df <- function(formula, models, data,
   data_inp <<- data
   df <- data.frame(observed = data$gap)
   len_m <- length(models[[1]])
-  cat("len"," " ,len_m, "\n")
+  #cat("len"," " ,len_m, "\n")
   for(i in 1:len_m)
   {
-    cat(i, "\n")
+    #cat(i, "\n")
     #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
     model = models[[1]][i]
     if(model == "RandomSurvivalForest")
     {
-      cat("Yeah rfs")
+      #cat("Yeah rfs")
       rfs <- rfsrc(formula = formula, data=data, ntree = 100, 
                    samptype = "swr",seed = 18, nodesize = 3)
       pr1 <- 1 - rfs$survival
       colnames(pr1) <- rfs$time.interest
       p <- models[[2]][i]
-      df[paste("RFS",p)] <- oospredict(pr1, p)
+      df[paste("RFS",p, sep = "_")] <- oospredict(pr1, p)
     }
     else if(model == "CoxPH")
     {
-      cat("Yeah CoxPH")
+      #cat("Yeah CoxPH")
       cox_fit <- coxph(formula = formula,data=data_inp)
       pr1 <- t(1 - survfit(cox_fit, newdata = data_inp)$surv)
       colnames(pr1) <- survfit(cox_fit, newdata = data_inp)$time
       p <- models[[2]][i]
-      df[paste("CoxPH",p)] <- oospredict(pr1, p)
+      df[paste("CoxPH",p, sep = "_")] <- oospredict(pr1, p)
     }
     else
     {
       train_dim <- dim(data)[2] - 3
-      cat("Yeah Caret")
-      newm<- train(x = model_ready_data[,1:train_dim], y = model_ready_data$gap, method = model, 
+      #cat("Yeah Caret")
+      newm<- train(form = formula2, data = data_inp, method = model, 
                    metric = metric, maximize = maximize, trControl = trControl)
       newpred <- predict(newm, newdata = data[,1:train_dim])
       newpred <- ceiling(newpred)
@@ -477,6 +478,8 @@ create_insample_predictions_df <- function(formula, models, data,
 in_pred2 <- create_insample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                              oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
                                            +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                           formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
+                                             sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
                                            models = l, data = model_ready_data,
                                            metric = "MYM", maximize = FALSE, 
                                            trControl = trainControl(summaryFunction = my_metric))
@@ -489,7 +492,7 @@ l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
           "thresholds" = rep(thresh,2))
 
 #Function to create out of sample predictions
-create_oosample_predictions_df_w <- function(formula, models, data, weights,
+create_oosample_predictions_df_w <- function(formula, formula2,models, data, weights,
                                              metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                              maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                              trControl = trainControl())
@@ -521,7 +524,7 @@ create_oosample_predictions_df_w <- function(formula, models, data, weights,
     else
     {
       cat("Yeah Caret")
-      newpred <- leave_one_out(data = data, model = model, formula = formula, weights = weights, 
+      newpred <- leave_one_out(data = data, model = model, formula2 = formula2, weights = weights, 
                                plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
       #newpred <- ceiling(newpred)
       df[paste(model,"w")] <- newpred
@@ -533,6 +536,8 @@ create_oosample_predictions_df_w <- function(formula, models, data, weights,
 looval_pred <- create_oosample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                                   oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
                                                 +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                                formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
+                                                  sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
                                                 models = l,data = model_ready_data, weights = weight_train,
                                                 metric = "MYM", maximize = FALSE, 
                                                 trControl = trainControl(summaryFunction = my_metric))
@@ -542,7 +547,7 @@ l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
           "thresholds" = rep(thresh,2))
 
 #Creates out of sample leave one out predictions for unweighted models
-create_oosample_predictions_df <- function(formula, models, data,
+create_oosample_predictions_df <- function(formula,formula2, models, data,
                                            metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                            maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                            trControl = trainControl())
@@ -574,7 +579,7 @@ create_oosample_predictions_df <- function(formula, models, data,
     else
     {
       cat("Yeah Caret")
-      newpred <- leave_one_out(data = data, model = model, formula = formula,
+      newpred <- leave_one_out(data = data, model = model, formula2 = formula2,
                                plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
       #newpred <- ceiling(newpred)
       df[paste(model)] <- newpred
@@ -586,6 +591,8 @@ create_oosample_predictions_df <- function(formula, models, data,
 looval_pred2 <- create_oosample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
                                                  oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
                                                +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
+                                               formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
+                                                 sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
                                                models = l,data = model_ready_data,
                                                metric = "MYM", maximize = FALSE, 
                                                trControl = trainControl(summaryFunction = my_metric))
