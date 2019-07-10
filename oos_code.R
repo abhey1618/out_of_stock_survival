@@ -86,6 +86,16 @@ inv_up_locate <- function(x,y){
     #if(x[i]==1 & i == length(x)) end_vec <- c(end_vec,i)
   }
   end_vec <- c(end_vec,length(x))
+  if(end_vec[1] == 0)
+  {
+    start_vec <- start_vec[-1]
+    end_vec <- end_vec[-1]
+  }
+  if(end_vec[1] < start_vec[1])
+  {
+    end_vec <- end_vec[-1]
+  }
+  #return(c(length(start_vec),length(end_vec)))
   return(data.frame(start_vec=start_vec,end_vec=end_vec))
 }
 
