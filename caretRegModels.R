@@ -18,7 +18,7 @@ train_dim <- dim(model_ready_data)[2] - 3
 
 #Robust Mahalanobis Distance for weighting
 #Doing this over 1:(train_dim - 1) because can ignore promo_ind for weighting
-weight_train <- dist_to_weight(Moutlier(model_ready_data[,1:(train_dim-1)]
+weight_train <- dist_to_weight(Moutlier(model_ready_data[,3:(train_dim-1)]
                                         ,plot = FALSE)$rd)
 
 appl_weight <- function(x)
