@@ -125,88 +125,6 @@ oospredict <- function(prob_matrix, threshold)
   return(pred)
 }
 
-leave_one_out_new <- function(formula, data, model,validation_data , weights = NULL, plot = TRUE, 
-                          metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
-                          maximize = ifelse(metric == "RMSE", FALSE, TRUE),
-                          trControl = trainControl(), tau = 0.5)
-{
-  len_d <- dim(data)[1]
-  len_c <- length(unique(data$gap))
-  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
-  {
-    oosp <- matrix(0,nrow = len_d,ncol = len_c)
-  }
-  else{
-    oosp <- c()
-  }
-  for(i in 2:len_d)
-  {
-    newd <<- data[-i,]
-    nweight <<- weights[-i]
-    if(model == "RandomSurvivalForest")
-    {
-      rfs <- rfsrc(formula,
-                   data=newd, ntree = 100, samptype = "swr",
-                   seed = 18,na.action = "na.impute", nodesize = 3, case.wt = nweight)
-      newpred <- predict(rfs, newdata = validation_data[(i-1),],na.action = "na.impute")
-      oosp[i,] <- c(1-newpred$survival,rep(1,(len_c-length(rfs$time.interest))))
-      if(plot == TRUE)
-      {
-        if(i==1)
-        {
-          plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
-               ylab = 'Out of stock probability', 
-               main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
-        }
-        else
-        {
-          lines(rfs$time.interest,oosp[i,1:length(rfs$time.interest)])
-        }
-      }
-    }
-    else if(model == "CoxPH")
-    {
-      fit_cox <- coxph(formula, data = newd, weights = nweight)
-      newpred <- survfit(fit_cox, newdata = validation_data[(i-1),])
-      oosp[i,] <- c(1-newpred$surv,rep(1,(len_c-length(newpred$time))))
-      if(plot == TRUE)
-      {
-        if(i==1)
-        {
-          plot(newpred$time,oosp[i,1:length(newpred$time)], 'l', xlab = 'Time in days', 
-               ylab = 'Out of stock probability', 
-               main = 'Predicted out of stock probability curves CoxPH', ylim = c(0,1), xlim = c(0,50)) 
-        }
-        else
-        {
-          lines(newpred$time,oosp[i,1:length(newpred$time)])
-        }
-      }
-    }
-    else if(model == "QuantReg")
-    {
-      rqfit <- rq(formula = formula, data = newd, tau = tau)
-      newpred <- predict(rqfit, newdata = validation_data[(i-1),])
-      oosp <- c(oosp, newpred)
-    }
-    else
-    {
-      train_dim <- dim(newd)[2] - 3
-      be <- train(x = newd[,1:train_dim], y = newd$gap, method = model, 
-                  weights = nweight, metric = metric, maximize = maximize, 
-                  trControl = trControl)
-      newpred <- predict(be, newdata = validation_data[(i-1),])
-      newpred <- ceiling(newpred)
-      oosp <- c(oosp,newpred)
-    }
-  }
-  if((model == "RandomSurvivalForest") || (model == "CoxPH"))
-  {
-    colnames(oosp) <- sort(unique(data$gap))
-  }
-  return(oosp)
-}
-
 leave_one_out_cnsr <- function(data, model, formula, weights = NULL, plot = TRUE, 
                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
@@ -297,30 +215,6 @@ leave_one_out_cnsr <- function(data, model, formula, weights = NULL, plot = TRUE
   return(oosp)
 }
 
-rfday <- oospredict(prob_matrix = oosp, threshold = 0.8)
-coxday <- oospredict(prob_matrix = oosp2, threshold = 0.8)
-
-
-pr1 <- leave_one_out_cnsr(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
-                        promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                       +sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q, plot = TRUE)
-exp1 <- oospredict(prob_matrix = pr1, threshold = 0.7)
-pr2 <- leave_one_out_cnsr(data = model_ready_data, model = "RandomSurvivalForest", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                     +sales_rate_1+sales_rate_2+sales_rate_3+sum_boh_q)#,weights = weight_train)
-exp2 <- oospredict(prob_matrix = pr2, threshold = 0.7)
-View(cbind(exp1,exp2,model_ready_data[model_ready_data$status == 1,]$gap))
-
-cpr1 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                      +sales_rate_1+sales_rate_2+sales_rate_3)
-exp1 <- oospredict(prob_matrix = cpr1, threshold = 0.7)
-cpr2 <- leave_one_out(data = model_ready_data, model = "CoxPH", formula = Surv(gap, status) ~ 
-                       promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                      +sales_rate_1+sales_rate_2+sales_rate_3,weights = weight_train)
-exp2 <- oospredict(prob_matrix = cpr2, threshold = 0.7)
-View(cbind(exp1,exp2,model_ready_data$gap))
-
 prob_bands <- function(prob_matrix, gap)
 {
   len_d <- dim(prob_matrix)[1]
@@ -356,14 +250,7 @@ prob_bands <- function(prob_matrix, gap)
   return(prob_lr)
 }
 
-rfpband <- prob_bands(prob_matrix = oosp, gap = model_ready_data$gap)
-coxpband <- prob_bands(prob_matrix = oosp2, gap = model_ready_data$gap)
-
 #Function to create a data frame for insample predictions for the 10 models
-thresh <- c(0.7,0.6)
-l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
-                        "CoxPH","CoxPH","bagEarth"), 
-          "thresholds" = rep(thresh,2))
 
 #Function to create insample predictions weighted models
 create_insample_predictions_df_w <- function(formula, formula2, models, data, weight,
@@ -415,18 +302,6 @@ create_insample_predictions_df_w <- function(formula, formula2, models, data, we
   return(df)
 }
 
-in_pred <- create_insample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
-                                              promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+
-                                              refill_2,formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+
-                                              promo_smry_2+sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+
-                                              refill_2, models = l,data = model_ready_data, weight = weight_train,
-                                            metric = "MYM", maximize = FALSE, 
-                                            trControl = trainControl(summaryFunction = my_metric))
-
-l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
-                        "CoxPH","CoxPH","rf"), 
-          "thresholds" = rep(thresh,2))
-
 #Creates in sample predictions for unweighted models
 create_insample_predictions_df <- function(formula, formula2, models, data,
                                            metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
@@ -475,24 +350,8 @@ create_insample_predictions_df <- function(formula, formula2, models, data,
   return(df)
 }
 
-in_pred2 <- create_insample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
-                                             oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                           +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                           formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
-                                             sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                           models = l, data = model_ready_data,
-                                           metric = "MYM", maximize = FALSE, 
-                                           trControl = trainControl(summaryFunction = my_metric))
-
-in_pred <- cbind(in_pred,in_pred2[-1])
-write.csv(in_pred, file = "/Users/z004189/Documents/Abhey/survival/Results/insample_pred3056_lays.csv")
-
-l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
-                        "CoxPH","CoxPH","bagEarth"), 
-          "thresholds" = rep(thresh,2))
-
-#Function to create out of sample predictions
-create_oosample_predictions_df_w <- function(formula, formula2,models, data, weights,
+#Function to create out of sample predictions old models
+create_oosample_predictions_df_w_old <- function(formula, formula2,models, data, weights,
                                              metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                              maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                              trControl = trainControl())
@@ -533,21 +392,8 @@ create_oosample_predictions_df_w <- function(formula, formula2,models, data, wei
   return(df)
 }
 
-looval_pred <- create_oosample_predictions_df_w(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
-                                                  oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                                +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                                formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
-                                                  sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                                models = l,data = model_ready_data, weights = weight_train,
-                                                metric = "MYM", maximize = FALSE, 
-                                                trControl = trainControl(summaryFunction = my_metric))
-
-l <- list("lmodels" = c("RandomSurvivalForest","RandomSurvivalForest",
-                        "CoxPH","CoxPH","rf"), 
-          "thresholds" = rep(thresh,2))
-
 #Creates out of sample leave one out predictions for unweighted models
-create_oosample_predictions_df <- function(formula,formula2, models, data,
+create_oosample_predictions_df_old <- function(formula,formula2, models, data,
                                            metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
                                            maximize = ifelse(metric == "RMSE", FALSE, TRUE),
                                            trControl = trainControl())
@@ -588,14 +434,84 @@ create_oosample_predictions_df <- function(formula,formula2, models, data,
   return(df)
 }
 
-looval_pred2 <- create_oosample_predictions_df(formula = Surv(gap, status) ~ promo_ind+oos_smry_1+
-                                                 oos_smry_2+promo_smry_1+promo_smry_2+sales_smry
-                                               +sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                               formula2 = gap ~ promo_ind+oos_smry_1+oos_smry_2+promo_smry_1+promo_smry_2+
-                                                 sales_smry+sales_rate_1+sales_rate_2+sales_rate_3+refill_1+refill_2,
-                                               models = l,data = model_ready_data,
-                                               metric = "MYM", maximize = FALSE, 
-                                               trControl = trainControl(summaryFunction = my_metric))
+create_oosample_predictions_df_w <- function(formula, formula2,models, data, weights,
+                                             metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                             maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                             trControl = trainControl())
+{
+  df <- data.frame(observed = data$gap[data$status == 1])
+  len_m <- length(models[[1]])
+  #cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    #cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      #cat("Yeah rfs")
+      pr1 <- leave_one_out_cnsr(data = data, model = model, formula = formula, weights = weights, 
+                                plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("RFS",p,"w", sep = "_")] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      #cat("Yeah CoxPH")
+      pr1 <- leave_one_out_cnsr(data = data, model = model, formula = formula, weights = weights, 
+                                plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("CoxPH",p,"w", sep = "_")] <- oospredict(pr1, p)
+    }
+    else
+    {
+      #cat("Yeah Caret")
+      newpred <- leave_one_out(data = data, model = model, formula2 = formula2, weights = weights, 
+                               plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
+      #newpred <- ceiling(newpred)
+      df[paste(model,"w")] <- newpred
+    }
+  }
+  return(df)
+}
 
-looval_pred <- cbind(looval_pred,looval_pred2[-1])
-write.csv(looval_pred, file = "/Users/z004189/Documents/Abhey/survival/Results/oosample_pred3056_lays.csv")
+create_oosample_predictions_df <- function(formula,formula2, models, data,
+                                           metric = ifelse(is.factor(y), "Accuracy", "RMSE"),
+                                           maximize = ifelse(metric == "RMSE", FALSE, TRUE),
+                                           trControl = trainControl())
+{
+  df <- data.frame(observed = data$gap[data$status == 1])
+  len_m <- length(models[[1]])
+  #cat("len"," " ,len_m, "\n")
+  for(i in 1:len_m)
+  {
+    #cat(i, "\n")
+    #ifelse(anyNA(models[[2]][,i]), wei <- NULL,wei <- models[[2]][,i]) 
+    model = models[[1]][i]
+    if(model == "RandomSurvivalForest")
+    {
+      #cat("Yeah rfs")
+      pr1 <- leave_one_out_cnsr(data = data, model = model, formula = formula, 
+                                plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("RFS",p, sep = "_")] <- oospredict(pr1, p)
+    }
+    else if(model == "CoxPH")
+    {
+      #cat("Yeah CoxPH")
+      pr1 <- leave_one_out_cnsr(data = data, model = model, formula = formula, 
+                                plot = FALSE)
+      p <- models[[2]][i]
+      df[paste("CoxPH",p, sep = "_")] <- oospredict(pr1, p)
+    }
+    else
+    {
+      #cat("Yeah Caret")
+      newpred <- leave_one_out(data = data, model = model, formula2 = formula2,
+                               plot = FALSE, metric = metric, maximize = maximize, trControl = trControl)
+      #newpred <- ceiling(newpred)
+      df[paste(model)] <- newpred
+    }
+  }
+  return(df)
+}
