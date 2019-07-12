@@ -34,7 +34,7 @@ leave_one_out <- function(data, model, formula = NULL, formula2 = NULL, weights 
         {
           plot(rfs$time.interest,oosp[i,1:length(rfs$time.interest)], 'l', xlab = 'Time in days', 
                ylab = 'Out of stock probability', 
-               main = 'Predicted out of stock probability curves RFS', ylim = c(0,1)) 
+               main = 'Predicted out of stock probability curves RFS', ylim = c(0,1),xlim = c(0,50)) 
         }
         else
         {
